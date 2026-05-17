@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Page Not Found — Dementia Care</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sand: #f5f0e8;
+    --sand-dark: #ede6d6;
+    --ink: #1a1612;
+    --ink-soft: #4a3f35;
+    --ink-muted: #8a7968;
+    --teal: #2d7a6e;
+    --teal-light: #3a9688;
+    --teal-pale: #e8f4f2;
+    --amber: #c8752a;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { background:var(--sand); color:var(--ink); font-family:'DM Sans',sans-serif; font-weight:300; min-height:100vh; display:flex; flex-direction:column; }
+  nav { position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:18px 48px; background:rgba(245,240,232,0.92); backdrop-filter:blur(12px); border-bottom:1px solid rgba(45,122,110,0.12); }
+  .logo { font-family:'Playfair Display',serif; font-size:1.5rem; font-weight:700; color:var(--teal); letter-spacing:-0.02em; text-decoration:none; }
+  .logo span { color:var(--amber); font-style:italic; }
+  main { flex:1; display:flex; align-items:center; justify-content:center; padding:80px 48px; }
+  .error-card { text-align:center; max-width:600px; }
+  .error-code { font-family:'Playfair Display',serif; font-size:clamp(6rem,15vw,10rem); font-weight:700; color:var(--teal); line-height:1; letter-spacing:-0.04em; margin-bottom:8px; }
+  .error-divider { width:60px; height:3px; background:var(--amber); margin:0 auto 32px; border-radius:2px; }
+  .error-heading { font-family:'Playfair Display',serif; font-size:clamp(1.4rem,3vw,2rem); font-weight:700; color:var(--ink); line-height:1.25; letter-spacing:-0.02em; margin-bottom:16px; }
+  .error-sub { font-size:1rem; line-height:1.7; color:var(--ink-soft); max-width:480px; margin:0 auto 36px; }
+  .error-buttons { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-bottom:40px; }
+  .btn-primary { background:var(--teal); color:white; border:none; padding:13px 30px; border-radius:9px; font-family:'DM Sans',sans-serif; font-size:0.95rem; font-weight:500; cursor:pointer; transition:all 0.2s; text-decoration:none; display:inline-block; }
+  .btn-primary:hover { background:var(--teal-light); transform:translateY(-1px); }
+  .btn-outline { background:transparent; color:var(--ink-soft); border:1.5px solid rgba(45,122,110,0.3); padding:12px 28px; border-radius:9px; font-family:'DM Sans',sans-serif; font-size:0.95rem; cursor:pointer; transition:all 0.2s; text-decoration:none; display:inline-block; }
+  .btn-outline:hover { border-color:var(--teal); color:var(--teal); }
+  .countdown { font-size:0.82rem; color:var(--ink-muted); }
+  .countdown span { color:var(--teal); font-weight:500; }
+  footer { background:var(--ink); color:rgba(255,255,255,0.4); padding:36px 48px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
+  .footer-logo { font-family:'Playfair Display',serif; font-size:1.3rem; font-weight:700; color:#3a9688; letter-spacing:-0.02em; }
+  .footer-logo span { color:#d98f42; font-style:italic; }
+  .footer-copy { font-size:0.78rem; }
+  @media(max-width:640px) {
+    nav { padding:16px 20px; }
+    main { padding:60px 20px; }
+    footer { padding:28px 20px; flex-direction:column; text-align:center; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">Dementia<span>Care</span></a>
+</nav>
+
+<main>
+  <div class="error-card">
+    <div class="error-code">404</div>
+    <div class="error-divider"></div>
+    <h1 class="error-heading">This page doesn't exist — but the right specialist does.</h1>
+    <p class="error-sub">The page you're looking for has moved or never existed. Let's get you back to finding the care your family needs.</p>
+    <div class="error-buttons">
+      <a href="/" class="btn-primary">Back to Directory</a>
+      <a href="/#contact" class="btn-outline">Contact Us</a>
+    </div>
+    <p class="countdown">Returning to directory in <span id="countdown">8</span> seconds…</p>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-logo">Dementia<span>Care</span></div>
+  <div class="footer-copy">© 2025 Dementia Care Directory</div>
+</footer>
+
+<script>
+  let seconds = 8;
+  const el = document.getElementById('countdown');
+  const timer = setInterval(() => {
+    seconds--;
+    el.textContent = seconds;
+    if (seconds <= 0) {
+      clearInterval(timer);
+      window.location.href = '/';
+    }
+  }, 1000);
+</script>
+</body>
+</html>

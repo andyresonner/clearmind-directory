@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#f5f0e8"/>
+  <!-- Subtle teal gradient panel right side -->
+  <rect x="680" y="0" width="520" height="630" fill="url(#bgGrad)" opacity="0.45"/>
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e8f4f2"/>
+      <stop offset="100%" stop-color="#ede6d6"/>
+    </linearGradient>
+  </defs>
+  <!-- Top accent line -->
+  <rect x="0" y="0" width="1200" height="4" fill="#2d7a6e"/>
+  <!-- Decorative quote mark -->
+  <text x="60" y="320" font-family="Georgia, 'Times New Roman', serif" font-size="420" fill="#2d7a6e" opacity="0.04" font-style="italic">"</text>
+
+  <!-- Logo wordmark -->
+  <text x="600" y="248" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="88" font-weight="700" fill="#2d7a6e" letter-spacing="-2">Dementia</text>
+  <text x="600" y="338" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="88" font-weight="700" font-style="italic" fill="#c8752a" letter-spacing="-2">Care</text>
+
+  <!-- Divider line -->
+  <rect x="460" y="368" width="280" height="2" fill="#2d7a6e" opacity="0.2" rx="1"/>
+
+  <!-- Tagline -->
+  <text x="600" y="414" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="400" fill="#4a3f35" letter-spacing="0.3">Find the right dementia specialist for your family</text>
+
+  <!-- Stats row -->
+  <text x="340" y="490" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="32" font-weight="700" fill="#2d7a6e">2,400+</text>
+  <text x="340" y="518" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#8a7968" letter-spacing="1" font-weight="400">VERIFIED SPECIALISTS</text>
+
+  <rect x="452" y="473" width="1.5" height="60" fill="#2d7a6e" opacity="0.15"/>
+
+  <text x="600" y="490" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="32" font-weight="700" fill="#2d7a6e">50</text>
+  <text x="600" y="518" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#8a7968" letter-spacing="1" font-weight="400">STATES COVERED</text>
+
+  <rect x="748" y="473" width="1.5" height="60" fill="#2d7a6e" opacity="0.15"/>
+
+  <text x="860" y="490" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="32" font-weight="700" fill="#2d7a6e">12,000+</text>
+  <text x="860" y="518" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#8a7968" letter-spacing="1" font-weight="400">FAMILIES HELPED</text>
+
+  <!-- Bottom domain -->
+  <text x="1160" y="600" text-anchor="end" font-family="'Helvetica Neue', Arial, sans-serif" font-size="20" fill="#8a7968" opacity="0.8">dementia-care.org</text>
+
+  <!-- Verified badge accent -->
+  <rect x="490" y="152" width="220" height="36" rx="18" fill="#e8f4f2" stroke="#2d7a6e" stroke-width="1.5" opacity="0.8"/>
+  <text x="600" y="175" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#2d7a6e" font-weight="600" letter-spacing="1.5">✓ VERIFIED DIRECTORY</text>
+</svg>
