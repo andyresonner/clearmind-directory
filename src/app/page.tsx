@@ -6,6 +6,7 @@ import SpecialistCard from '@/components/SpecialistCard'
 import FilterBar from '@/components/FilterBar'
 import SearchBar from '@/components/SearchBar'
 import ShareModal from '@/components/ShareModal'
+import NeuralBackground from '@/components/NeuralBackground'
 
 export default function HomePage() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -68,7 +69,8 @@ export default function HomePage() {
   return (
     <>
       {/* Hero */}
-      <section className="min-h-screen grid grid-cols-2 items-center pt-32 pb-20 px-12 gap-20 relative">
+      <section className="min-h-screen grid grid-cols-2 items-center pt-32 pb-20 px-12 gap-20 relative overflow-hidden">
+        <NeuralBackground />
         <div className="absolute top-0 right-0 w-1/2 h-full" style={{ background: 'linear-gradient(135deg,#e8f4f2 0%,#ede6d6 100%)', zIndex: 0 }} />
         {/* Left */}
         <div className="relative z-10 animate-fade-up">

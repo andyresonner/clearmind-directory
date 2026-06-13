@@ -21,15 +21,8 @@ export default function Nav() {
       <Link href="/" className="font-serif text-2xl font-bold text-teal tracking-tight">
         Dementia<span className="text-amber italic">Care</span>
       </Link>
-      <ul className="flex gap-8 list-none items-center">
-        <li>
-          <button
-            onClick={() => handleScroll('directory')}
-            className="text-ink-soft text-sm font-normal hover:text-teal transition-colors"
-          >
-            Find a Specialist
-          </button>
-        </li>
+
+      <ul className="flex gap-6 list-none items-center">
         <li>
           <button
             onClick={() => handleScroll('why')}
@@ -49,9 +42,17 @@ export default function Nav() {
         <li>
           <Link
             href="/for-providers"
-            className="text-white text-sm font-medium bg-teal px-5 py-2 rounded-md hover:bg-teal-light transition-colors"
+            className="text-sm font-medium text-teal border border-teal/40 px-4 py-2 rounded-md hover:border-teal hover:bg-teal-pale transition-colors"
           >
             List Your Practice
+          </Link>
+        </li>
+        <li>
+          <Link
+            href="/find-a-specialist"
+            className="text-sm font-medium text-white bg-teal px-5 py-2 rounded-md hover:bg-teal-light transition-colors shadow-sm"
+          >
+            Find a Specialist
           </Link>
         </li>
       </ul>
