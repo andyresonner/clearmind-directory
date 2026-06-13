@@ -1,228 +1,398 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { specialists } from '@/data/specialists'
 import SpecialistCard from '@/components/SpecialistCard'
+import { supabase } from '@/lib/supabase'
 
-const CARE_TYPES = [
-  { value: 'all',          label: 'Show me everything',        emoji: '🔍' },
-  { value: 'neurologist',  label: 'Neurologist',               emoji: '🧠' },
-  { value: 'geriatric',    label: 'Geriatric Psychiatrist',    emoji: '💬' },
-  { value: 'memory',       label: 'Memory Care Specialist',    emoji: '📋' },
-  { value: 'geriatrician', label: 'Geriatrician',              emoji: '🏥' },
-] as const
+// ─── Types ───────────────────────────────────────────────────────────────────
+type StepId = 'location' | 'specialty' | 'prefs' | 'results'
+const ORDER: StepId[] = ['location', 'specialty', 'prefs', 'results']
 
-type CareType = typeof CARE_TYPES[number]['value']
+type Specialty = 'all' | 'neurologist' | 'geriatric' | 'memory' | 'geriatrician'
 
+const SPECIALTY_OPTIONS: { value: Specialty; label: string; desc: string; icon: string }[] = [
+  { value: 'all',          label: 'Show me everything',     desc: 'Browse all dementia-focused specialists', icon: '🔍' },
+  { value: 'neurologist',  label: 'Neurologist',            desc: 'Brain & nervous system specialists',      icon: '🧠' },
+  { value: 'geriatric',    label: 'Geriatric Psychiatrist', desc: 'Mental health for older adults',          icon: '💬' },
+  { value: 'memory',       label: 'Memory Care Specialist', desc: 'Focused on memory disorders',             icon: '📋' },
+  { value: 'geriatrician', label: 'Geriatrician',           desc: 'Comprehensive elder care',                icon: '🏥' },
+]
+
+const LANGUAGES = ['English', 'Spanish', 'Mandarin', 'Cantonese', 'Korean', 'Portuguese', 'Hebrew', 'Greek']
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function stepIdx(id: StepId) { return ORDER.indexOf(id) }
+
+function stepStyle(id: StepId, current: StepId) {
+  const diff = stepIdx(id) - stepIdx(current)
+  return {
+    transform: `translateX(${diff * 110}vw)`,
+    transition: 'transform 420ms cubic-bezier(0.16,1,0.3,1)',
+  }
+}
+
+async function reverseGeocode(lat: number, lon: number): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+      { headers: { 'Accept-Language': 'en' } }
+    )
+    const data = await res.json()
+    const city = data.address?.city || data.address?.town || data.address?.village || ''
+    const state = data.address?.state || ''
+    return [city, state].filter(Boolean).join(', ')
+  } catch {
+    return ''
+  }
+}
+
+// ─── Progress Bar ─────────────────────────────────────────────────────────────
+function ProgressBar({ current }: { current: StepId }) {
+  const pct = ((stepIdx(current) + 1) / ORDER.length) * 100
+  return (
+    <div className="fixed top-0 left-0 right-0 z-[100] h-[3px] bg-teal/10">
+      <div
+        className="h-full bg-teal transition-all duration-500 ease-out"
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  )
+}
+
+// ─── Step wrapper ─────────────────────────────────────────────────────────────
+function Step({ id, current, children }: { id: StepId; current: StepId; children: React.ReactNode }) {
+  return (
+    <div
+      className="absolute inset-0 overflow-y-auto"
+      style={stepStyle(id, current)}
+    >
+      {children}
+    </div>
+  )
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 export default function FindASpecialistPage() {
-  const [careType, setCareType]         = useState<CareType | null>(null)
-  const [location, setLocation]         = useState('')
-  const [acceptingOnly, setAcceptingOnly] = useState(false)
-  const [hasSearched, setHasSearched]   = useState(false)
-  const [livePreview, setLivePreview]   = useState('')
+  const [step, setStep]               = useState<StepId>('location')
+  const [location, setLocation]       = useState('')
+  const [specialty, setSpecialty]     = useState<Specialty | null>(null)
+  const [acceptingOnly, setAccepting] = useState(false)
+  const [language, setLanguage]       = useState('')
+  const [geoLoading, setGeoLoading]   = useState(false)
+  const [geoError, setGeoError]       = useState('')
+  const [submitted, setSubmitted]     = useState(false)
 
-  function handleLocationInput(val: string) {
-    setLocation(val)
-    setLivePreview(val.trim() ? `Searching for specialists in ${val.trim()}…` : '')
-  }
+  const handleKeyRef = useRef<(e: KeyboardEvent) => void>(() => {})
 
-  function handleFind() {
-    setHasSearched(true)
-    setTimeout(() => {
-      document.getElementById('results')?.scrollIntoView({ behavior: 'smooth' })
-    }, 80)
-  }
-
+  // Results
   const results = useMemo(() => {
-    if (!hasSearched && careType === null) return []
+    if (!submitted) return []
     let list = [...specialists]
-    if (careType && careType !== 'all') {
-      list = list.filter(s => s.type === careType)
-    }
+    if (specialty && specialty !== 'all') list = list.filter(s => s.type === specialty)
     if (location.trim()) {
       const lower = location.trim().toLowerCase()
       list = list.filter(s => s.city.toLowerCase().includes(lower))
     }
-    if (acceptingOnly) {
-      list = list.filter(s => s.tagsAmber.length > 0)
-    }
+    if (acceptingOnly) list = list.filter(s => s.tagsAmber.length > 0)
     return list
-  }, [careType, location, acceptingOnly, hasSearched])
+  }, [specialty, location, acceptingOnly, submitted])
 
-  const showResults = hasSearched || careType !== null
+  function advance(next: StepId) { setStep(next) }
+
+  function handleLocationNext() {
+    advance('specialty')
+  }
+
+  function handleSpecialtyNext(val: Specialty) {
+    setSpecialty(val)
+    advance('prefs')
+  }
+
+  function handleShowMatches() {
+    setSubmitted(true)
+    advance('results')
+    // Fire-and-forget analytics
+    supabase?.from('searches').insert({
+      location: location.trim() || null,
+      specialty: specialty || 'all',
+      accepting_only: acceptingOnly,
+      language: language || null,
+      results_count: results.length,
+      created_at: new Date().toISOString(),
+    })
+  }
+
+  function reset() {
+    setStep('location')
+    setLocation('')
+    setSpecialty(null)
+    setAccepting(false)
+    setLanguage('')
+    setSubmitted(false)
+    setGeoError('')
+  }
+
+  function useGeo() {
+    if (!navigator.geolocation) { setGeoError('Geolocation not supported'); return }
+    setGeoLoading(true)
+    setGeoError('')
+    navigator.geolocation.getCurrentPosition(
+      async pos => {
+        const label = await reverseGeocode(pos.coords.latitude, pos.coords.longitude)
+        setLocation(label || `${pos.coords.latitude.toFixed(2)}, ${pos.coords.longitude.toFixed(2)}`)
+        setGeoLoading(false)
+      },
+      () => {
+        setGeoError('Could not get your location. Please type it instead.')
+        setGeoLoading(false)
+      }
+    )
+  }
+
+  // Keyboard support (stale-closure-safe via ref)
+  handleKeyRef.current = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') { reset(); return }
+    if (e.key === 'Enter') {
+      if (step === 'location') handleLocationNext()
+      if (step === 'prefs') handleShowMatches()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, location, specialty, acceptingOnly, language])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => handleKeyRef.current(e)
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   return (
     <>
-      {/* Page hero */}
-      <section className="pt-32 pb-16 px-12 text-center" style={{ background: 'linear-gradient(160deg,#e8f4f2 0%,#f5f0e8 60%)' }}>
-        <div className="max-w-2xl mx-auto">
-          <div className="inline-flex items-center gap-2 text-xs font-medium tracking-widest uppercase text-teal mb-5">
-            <span className="w-5 h-px bg-teal block" />
-            Guided Search
-            <span className="w-5 h-px bg-teal block" />
-          </div>
-          <h1 className="font-serif text-4xl md:text-5xl font-bold text-ink leading-tight tracking-tight mb-5">
-            Let&rsquo;s find the right specialist<br />
-            <em className="italic text-teal">for your family</em>
-          </h1>
-          <p className="text-lg leading-relaxed text-ink-soft max-w-xl mx-auto">
-            We know this search can feel overwhelming. Answer a few simple questions and we&rsquo;ll show you only the specialists who are the right fit — verified, reviewed, and ready to help.
-          </p>
-        </div>
-      </section>
+      <ProgressBar current={step} />
 
-      {/* Trust strip */}
-      <div className="bg-white border-y border-teal/10 py-4 px-12">
-        <div className="max-w-3xl mx-auto flex flex-wrap justify-center gap-8">
-          {[
-            '✓ Board-certified specialists only',
-            '✓ Real reviews from verified families',
-            '✓ Accepting status updated quarterly',
-          ].map(signal => (
-            <span key={signal} className="text-sm font-medium text-teal">{signal}</span>
-          ))}
-        </div>
-      </div>
+      {/* Full-viewport container */}
+      <div className="h-screen overflow-hidden relative" style={{ paddingTop: 64 }}>
 
-      {/* 3-step filter */}
-      <section className="py-16 px-12 max-w-4xl mx-auto">
-        {/* Step 1 */}
-        <div className="mb-12">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="w-7 h-7 rounded-full bg-teal text-white text-xs font-bold flex items-center justify-center flex-shrink-0">1</span>
-            <h2 className="font-serif text-xl font-semibold text-ink">What type of care are you looking for?</h2>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {CARE_TYPES.map(({ value, label, emoji }) => (
+        {/* ── Step 1: Location ─────────────────────────────────────────────── */}
+        <Step id="location" current={step}>
+          <div className="min-h-full flex flex-col items-center justify-center px-6 py-20" style={{ background: 'linear-gradient(160deg,#e8f4f2 0%,#f5f0e8 60%)' }}>
+            <div className="w-full max-w-lg text-center">
+              <div className="inline-flex items-center gap-2 text-xs font-medium tracking-widest uppercase text-teal mb-6">
+                <span className="w-5 h-px bg-teal block" />
+                Step 1 of 3
+                <span className="w-5 h-px bg-teal block" />
+              </div>
+              <h1 className="font-serif text-4xl md:text-5xl font-bold text-ink leading-tight mb-3">
+                Where are you<br />
+                <em className="italic text-teal">looking?</em>
+              </h1>
+              <p className="text-base text-ink-soft mb-10">We&rsquo;ll find verified specialists near you.</p>
+
+              <div className="bg-white rounded-2xl shadow-lg border border-teal/10 p-2 flex gap-2 mb-4" style={{ boxShadow: '0 8px 40px rgba(45,122,110,0.12)' }}>
+                <input
+                  type="text"
+                  autoFocus
+                  value={location}
+                  onChange={e => setLocation(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleLocationNext()}
+                  placeholder="City, state, or zip code…"
+                  className="flex-1 bg-transparent border-none outline-none text-base text-ink placeholder-ink-muted px-4 py-3"
+                />
+                <button
+                  onClick={handleLocationNext}
+                  className="bg-teal text-white text-sm font-medium px-6 py-3 rounded-xl hover:bg-teal-light transition-colors whitespace-nowrap"
+                >
+                  Next →
+                </button>
+              </div>
+
               <button
-                key={value}
-                onClick={() => { setCareType(value); if (!hasSearched) setHasSearched(true) }}
-                className={`flex items-center gap-2 px-5 py-3 rounded-xl border text-sm font-medium transition-all duration-200 ${
-                  careType === value
-                    ? 'bg-teal text-white border-teal shadow-sm'
-                    : 'bg-white text-ink-soft border-teal/20 hover:border-teal hover:text-teal'
-                }`}
+                onClick={useGeo}
+                disabled={geoLoading}
+                className="flex items-center gap-2 mx-auto text-sm text-teal font-medium hover:text-teal-light transition-colors"
               >
-                <span>{emoji}</span>
-                {label}
+                {geoLoading ? (
+                  <span className="w-4 h-4 rounded-full border-2 border-teal/30 border-t-teal animate-spin inline-block" />
+                ) : (
+                  <span>📍</span>
+                )}
+                {geoLoading ? 'Getting your location…' : 'Use my current location'}
               </button>
-            ))}
-          </div>
-        </div>
+              {geoError && <p className="text-xs text-rose-500 mt-2">{geoError}</p>}
 
-        {/* Step 2 */}
-        <div className="mb-12">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="w-7 h-7 rounded-full bg-teal text-white text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
-            <h2 className="font-serif text-xl font-semibold text-ink">Where are you located?</h2>
-          </div>
-          <div className="max-w-md">
-            <div className="bg-white rounded-xl px-2 py-1.5 flex gap-2 shadow-sm border border-teal/15" style={{ boxShadow: '0 4px 24px rgba(45,122,110,0.10)' }}>
-              <input
-                type="text"
-                value={location}
-                onChange={e => handleLocationInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleFind()}
-                placeholder="City, state, or zip code…"
-                className="flex-1 bg-transparent border-none outline-none text-sm text-ink placeholder-ink-muted px-3 py-2"
-              />
               <button
-                onClick={handleFind}
-                className="bg-teal text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-teal-light transition-colors whitespace-nowrap"
+                onClick={handleLocationNext}
+                className="mt-6 text-xs text-ink-muted underline decoration-dotted hover:text-ink-soft transition-colors"
               >
-                Search
+                Skip — search everywhere
               </button>
             </div>
-            {livePreview && (
-              <p className="text-xs text-ink-muted italic mt-2 ml-1">{livePreview}</p>
-            )}
           </div>
-        </div>
+        </Step>
 
-        {/* Step 3 */}
-        <div className="mb-14">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="w-7 h-7 rounded-full bg-teal text-white text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
-            <h2 className="font-serif text-xl font-semibold text-ink">Any other preferences?</h2>
+        {/* ── Step 2: Specialty ─────────────────────────────────────────────── */}
+        <Step id="specialty" current={step}>
+          <div className="min-h-full flex flex-col items-center justify-center px-6 py-20 bg-white">
+            <div className="w-full max-w-2xl">
+              <button onClick={() => advance('location')} className="flex items-center gap-1.5 text-sm text-ink-muted hover:text-teal transition-colors mb-8">
+                ← Back
+              </button>
+              <div className="inline-flex items-center gap-2 text-xs font-medium tracking-widest uppercase text-teal mb-4">
+                <span className="w-5 h-px bg-teal block" />
+                Step 2 of 3
+                <span className="w-5 h-px bg-teal block" />
+              </div>
+              <h2 className="font-serif text-3xl md:text-4xl font-bold text-ink mb-2">
+                What type of care<br />
+                <em className="italic text-teal">are you looking for?</em>
+              </h2>
+              <p className="text-base text-ink-soft mb-10">Select one — you can always change this later.</p>
+
+              <div className="grid gap-3">
+                {SPECIALTY_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleSpecialtyNext(opt.value)}
+                    className={`flex items-center gap-4 px-6 py-4 rounded-2xl border text-left transition-all duration-200 hover:-translate-y-0.5 ${
+                      specialty === opt.value
+                        ? 'bg-teal text-white border-teal shadow-md'
+                        : 'bg-white text-ink border-teal/15 hover:border-teal/40 hover:shadow-sm'
+                    }`}
+                  >
+                    <span className="text-2xl flex-shrink-0">{opt.icon}</span>
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm">{opt.label}</div>
+                      <div className={`text-xs mt-0.5 ${specialty === opt.value ? 'text-white/70' : 'text-ink-muted'}`}>{opt.desc}</div>
+                    </div>
+                    <span className={`text-lg opacity-40 ${specialty === opt.value ? 'opacity-100' : ''}`}>→</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-          <button
-            onClick={() => { setAcceptingOnly(v => !v); if (!hasSearched) setHasSearched(true) }}
-            className={`flex items-center gap-3 px-5 py-3 rounded-xl border text-sm font-medium transition-all duration-200 ${
-              acceptingOnly
-                ? 'bg-amber/10 text-amber border-amber/40'
-                : 'bg-white text-ink-soft border-teal/20 hover:border-teal hover:text-teal'
-            }`}
-          >
-            <span className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${acceptingOnly ? 'bg-amber border-amber' : 'border-ink-muted'}`}>
-              {acceptingOnly && <span className="text-white text-xs font-bold">✓</span>}
-            </span>
-            Accepting new patients only
-          </button>
-        </div>
+        </Step>
 
-        {/* Show results button (if no type selected yet) */}
-        {!hasSearched && (
-          <button
-            onClick={handleFind}
-            className="bg-teal text-white font-medium px-8 py-3.5 rounded-xl hover:bg-teal-light transition-colors text-sm shadow-sm"
-          >
-            Show me all specialists →
-          </button>
-        )}
-      </section>
+        {/* ── Step 3: Prefs ─────────────────────────────────────────────────── */}
+        <Step id="prefs" current={step}>
+          <div className="min-h-full flex flex-col items-center justify-center px-6 py-20" style={{ background: 'linear-gradient(160deg,#f5f0e8 0%,#e8f4f2 100%)' }}>
+            <div className="w-full max-w-lg">
+              <button onClick={() => advance('specialty')} className="flex items-center gap-1.5 text-sm text-ink-muted hover:text-teal transition-colors mb-8">
+                ← Back
+              </button>
+              <div className="inline-flex items-center gap-2 text-xs font-medium tracking-widest uppercase text-teal mb-4">
+                <span className="w-5 h-px bg-teal block" />
+                Step 3 of 3
+                <span className="w-5 h-px bg-teal block" />
+              </div>
+              <h2 className="font-serif text-3xl md:text-4xl font-bold text-ink mb-2">
+                Any other<br />
+                <em className="italic text-teal">preferences?</em>
+              </h2>
+              <p className="text-base text-ink-soft mb-10">Optional — skip to see all results.</p>
 
-      {/* Results */}
-      {showResults && (
-        <section id="results" className="px-12 pb-20 max-w-7xl mx-auto">
-          <div className="border-t border-teal/10 pt-12">
-            {/* Result summary */}
-            <div className="flex items-end justify-between mb-8">
-              <div>
-                <h2 className="font-serif text-2xl font-semibold text-ink mb-1">
-                  {results.length === 0
-                    ? 'No specialists found'
-                    : `${results.length} specialist${results.length !== 1 ? 's' : ''} match your search`}
-                </h2>
-                {(careType && careType !== 'all') || location || acceptingOnly ? (
-                  <p className="text-sm text-ink-muted">
+              {/* Accepting only toggle */}
+              <div className="bg-white rounded-2xl border border-teal/10 p-5 mb-4 shadow-sm">
+                <button
+                  onClick={() => setAccepting(v => !v)}
+                  className="flex items-center gap-4 w-full text-left"
+                >
+                  <div className={`w-12 h-7 rounded-full relative transition-colors duration-200 ${acceptingOnly ? 'bg-amber' : 'bg-ink-muted/20'}`}>
+                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-all duration-200 ${acceptingOnly ? 'left-6' : 'left-1'}`} />
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm text-ink">Accepting new patients only</div>
+                    <div className="text-xs text-ink-muted mt-0.5">Filter to specialists with open slots</div>
+                  </div>
+                </button>
+              </div>
+
+              {/* Language preference */}
+              <div className="bg-white rounded-2xl border border-teal/10 p-5 mb-10 shadow-sm">
+                <div className="text-sm font-medium text-ink mb-3">Language preference</div>
+                <div className="flex flex-wrap gap-2">
+                  {LANGUAGES.map(lang => (
+                    <button
+                      key={lang}
+                      onClick={() => setLanguage(l => l === lang ? '' : lang)}
+                      className={`px-3.5 py-1.5 rounded-lg border text-xs font-medium transition-all duration-150 ${
+                        language === lang
+                          ? 'bg-teal text-white border-teal'
+                          : 'bg-white text-ink-soft border-teal/20 hover:border-teal hover:text-teal'
+                      }`}
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={handleShowMatches}
+                className="w-full bg-teal text-white text-base font-semibold py-4 rounded-2xl hover:bg-teal-light transition-all hover:-translate-y-0.5 shadow-md"
+                style={{ boxShadow: '0 8px 32px rgba(45,122,110,0.25)' }}
+              >
+                Show my matches →
+              </button>
+
+              <p className="text-center text-xs text-ink-muted mt-4">
+                Press <kbd className="bg-ink/5 px-1.5 py-0.5 rounded text-ink-soft">Enter</kbd> to search &nbsp;·&nbsp; <kbd className="bg-ink/5 px-1.5 py-0.5 rounded text-ink-soft">Esc</kbd> to start over
+              </p>
+            </div>
+          </div>
+        </Step>
+
+        {/* ── Step 4: Results ───────────────────────────────────────────────── */}
+        <Step id="results" current={step}>
+          <div className="min-h-full bg-white">
+            {/* Results header */}
+            <div className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-teal/10 px-6 py-4">
+              <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+                <div>
+                  <span className="font-serif text-lg font-semibold text-ink">
+                    {results.length === 0
+                      ? 'No specialists found'
+                      : `${results.length} specialist${results.length !== 1 ? 's' : ''} found`}
+                  </span>
+                  <span className="text-sm text-ink-muted ml-3">
                     {[
-                      careType && careType !== 'all' && CARE_TYPES.find(t => t.value === careType)?.label,
+                      specialty && specialty !== 'all' && SPECIALTY_OPTIONS.find(o => o.value === specialty)?.label,
                       location && `near ${location}`,
                       acceptingOnly && 'accepting new patients',
                     ].filter(Boolean).join(' · ')}
-                    {' '}
-                    <button
-                      className="text-teal underline decoration-dotted hover:no-underline ml-1"
-                      onClick={() => { setCareType(null); setLocation(''); setLivePreview(''); setAcceptingOnly(false); setHasSearched(false) }}
-                    >
-                      Clear all
-                    </button>
-                  </p>
-                ) : null}
+                  </span>
+                </div>
+                <button
+                  onClick={reset}
+                  className="text-sm text-teal font-medium border border-teal/30 px-4 py-1.5 rounded-lg hover:bg-teal-pale transition-colors whitespace-nowrap"
+                >
+                  ← New search
+                </button>
               </div>
             </div>
 
-            {results.length === 0 ? (
-              <div className="text-center py-20 text-ink-muted">
-                <p className="font-serif text-xl text-ink mb-3">No specialists found for those filters.</p>
-                <p className="text-sm mb-6">Try broadening your search — remove a filter or search a larger area.</p>
-                <button
-                  onClick={() => { setCareType('all'); setLocation(''); setLivePreview(''); setAcceptingOnly(false) }}
-                  className="bg-teal text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-teal-light transition-colors"
-                >
-                  Show all specialists
-                </button>
-              </div>
-            ) : (
-              <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))' }}>
-                {results.map((s, i) => (
-                  <SpecialistCard key={s.slug} specialist={s} delay={i * 0.06} />
-                ))}
-              </div>
-            )}
+            <div className="max-w-7xl mx-auto px-6 py-10">
+              {results.length === 0 ? (
+                <div className="text-center py-24">
+                  <p className="font-serif text-2xl text-ink mb-3">No specialists found for those filters.</p>
+                  <p className="text-sm text-ink-muted mb-8">Try broadening your search or removing a filter.</p>
+                  <button
+                    onClick={() => { advance('prefs'); setAccepting(false); setLanguage('') }}
+                    className="bg-teal text-white text-sm font-medium px-6 py-3 rounded-xl hover:bg-teal-light transition-colors"
+                  >
+                    Adjust preferences
+                  </button>
+                </div>
+              ) : (
+                <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))' }}>
+                  {results.map((s, i) => (
+                    <SpecialistCard key={s.slug} specialist={s} delay={i * 0.05} />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </section>
-      )}
+        </Step>
+      </div>
     </>
   )
 }
