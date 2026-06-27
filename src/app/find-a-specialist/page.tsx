@@ -92,7 +92,10 @@ export default function FindASpecialistPage() {
     if (specialty && specialty !== 'all') list = list.filter(s => s.type === specialty)
     if (location.trim()) {
       const lower = location.trim().toLowerCase()
-      list = list.filter(s => s.city.toLowerCase().includes(lower))
+      list = list.filter(s =>
+        s.city.toLowerCase().includes(lower) ||
+        s.state.toLowerCase().includes(lower)
+      )
     }
     if (acceptingOnly) list = list.filter(s => s.tagsAmber.length > 0)
     return list
@@ -205,6 +208,12 @@ export default function FindASpecialistPage() {
                   Next →
                 </button>
               </div>
+
+              {location.trim() && (
+                <p className="text-xs text-teal italic mt-2 ml-1">
+                  Searching for specialists in {location.trim()}…
+                </p>
+              )}
 
               <button
                 onClick={useGeo}

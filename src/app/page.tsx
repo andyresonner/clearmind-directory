@@ -87,11 +87,11 @@ export default function HomePage() {
           <SearchBar onSearch={handleSearch} searchTerm={searchDisplay} />
           <div className="flex gap-8 mt-8">
             <div className="flex flex-col gap-0.5">
-              <span className="font-serif text-3xl font-bold text-ink">2,400+</span>
+              <span className="font-serif text-3xl font-bold text-ink">31</span>
               <span className="text-xs text-ink-muted uppercase tracking-wide">Verified specialists</span>
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="font-serif text-3xl font-bold text-ink">50</span>
+              <span className="font-serif text-3xl font-bold text-ink">19</span>
               <span className="text-xs text-ink-muted uppercase tracking-wide">States covered</span>
             </div>
             <div className="flex flex-col gap-0.5">
@@ -242,7 +242,7 @@ export default function HomePage() {
           Are you a dementia specialist?
         </h2>
         <p className="text-base leading-relaxed text-ink-soft mx-auto max-w-xl mb-10 text-center">
-          Join 2,400+ specialists already listed on Dementia Care. Families searching for your expertise are looking right now.
+          Join 31 specialists already listed on Dementia Care. Families searching for your expertise are looking right now.
         </p>
         <Link
           href="/for-providers"
