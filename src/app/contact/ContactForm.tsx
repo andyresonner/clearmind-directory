@@ -1,8 +1,37 @@
 'use client'
 import { useState } from 'react'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
 export default function ContactForm() {
+  const [name, setName]       = useState('')
+  const [email, setEmail]     = useState('')
+  const [role, setRole]       = useState('Family member or caregiver')
+  const [message, setMessage] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState('')
+
+  async function handleSubmit() {
+    if (!name.trim() || !email.trim() || !message.trim()) {
+      setError('Please fill in your name, email, and message.')
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      await addDoc(collection(db, 'contact_messages'), {
+        name, email, role, message,
+        createdAt: serverTimestamp(),
+      })
+      setSubmitted(true)
+    } catch (e) {
+      console.error(e)
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (submitted) {
     return (
@@ -18,15 +47,31 @@ export default function ContactForm() {
     <div className="bg-white rounded-2xl p-9 shadow-sm border border-teal/8">
       <div className="mb-5">
         <label className="block text-xs font-medium text-ink mb-1.5 uppercase tracking-wide">Your Name</label>
-        <input type="text" placeholder="Full name" className="w-full border border-teal/20 rounded-lg px-4 py-3 font-sans text-sm text-ink bg-sand outline-none focus:border-teal focus:bg-white transition-colors" />
+        <input
+          type="text"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="Full name"
+          className="w-full border border-teal/20 rounded-lg px-4 py-3 font-sans text-sm text-ink bg-sand outline-none focus:border-teal focus:bg-white transition-colors"
+        />
       </div>
       <div className="mb-5">
         <label className="block text-xs font-medium text-ink mb-1.5 uppercase tracking-wide">Email Address</label>
-        <input type="email" placeholder="your@email.com" className="w-full border border-teal/20 rounded-lg px-4 py-3 font-sans text-sm text-ink bg-sand outline-none focus:border-teal focus:bg-white transition-colors" />
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="your@email.com"
+          className="w-full border border-teal/20 rounded-lg px-4 py-3 font-sans text-sm text-ink bg-sand outline-none focus:border-teal focus:bg-white transition-colors"
+        />
       </div>
       <div className="mb-5">
         <label className="block text-xs font-medium text-ink mb-1.5 uppercase tracking-wide">I am a…</label>
-        <select className="w-full border border-teal/20 rounded-lg px-4 py-3 font-sans text-sm text-ink bg-sand outline-none focus:border-teal focus:bg-white transition-colors">
+        <select
+          value={role}
+          onChange={e => setRole(e.target.value)}
+          className="w-full border border-teal/20 rounded-lg px-4 py-3 font-sans text-sm text-ink bg-sand outline-none focus:border-teal focus:bg-white transition-colors"
+        >
           <option>Family member or caregiver</option>
           <option>Patient</option>
           <option>Medical provider</option>
@@ -36,13 +81,21 @@ export default function ContactForm() {
       </div>
       <div className="mb-5">
         <label className="block text-xs font-medium text-ink mb-1.5 uppercase tracking-wide">Message</label>
-        <textarea placeholder="How can we help you?" rows={5} className="w-full border border-teal/20 rounded-lg px-4 py-3 font-sans text-sm text-ink bg-sand outline-none focus:border-teal focus:bg-white transition-colors resize-y min-h-28" />
+        <textarea
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          placeholder="How can we help you?"
+          rows={5}
+          className="w-full border border-teal/20 rounded-lg px-4 py-3 font-sans text-sm text-ink bg-sand outline-none focus:border-teal focus:bg-white transition-colors resize-y min-h-28"
+        />
       </div>
+      {error && <p className="text-xs text-rose-500 mb-4">{error}</p>}
       <button
-        onClick={() => setSubmitted(true)}
-        className="w-full bg-teal text-white py-3.5 rounded-lg font-sans text-base font-medium hover:bg-teal-light hover:-translate-y-px transition-all"
+        onClick={handleSubmit}
+        disabled={loading}
+        className="w-full bg-teal text-white py-3.5 rounded-lg font-sans text-base font-medium hover:bg-teal-light hover:-translate-y-px transition-all disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        Send Message
+        {loading ? 'Sending…' : 'Send Message'}
       </button>
     </div>
   )

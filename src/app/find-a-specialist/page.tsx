@@ -3,7 +3,8 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { specialists } from '@/data/specialists'
 import SpecialistCard from '@/components/SpecialistCard'
-import { supabase } from '@/lib/supabase'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type StepId = 'location' | 'specialty' | 'prefs' | 'results'
@@ -115,15 +116,14 @@ export default function FindASpecialistPage() {
   function handleShowMatches() {
     setSubmitted(true)
     advance('results')
-    // Fire-and-forget analytics
-    supabase?.from('searches').insert({
+    // Fire-and-forget search analytics
+    addDoc(collection(db, 'searches'), {
       location: location.trim() || null,
       specialty: specialty || 'all',
-      accepting_only: acceptingOnly,
+      acceptingOnly,
       language: language || null,
-      results_count: results.length,
-      created_at: new Date().toISOString(),
-    })
+      createdAt: serverTimestamp(),
+    }).catch(() => {})
   }
 
   function reset() {
