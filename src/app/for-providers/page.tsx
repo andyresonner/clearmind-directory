@@ -3,7 +3,7 @@ import ProviderForm from './ProviderForm'
 
 export const metadata: Metadata = {
   title: 'For Providers',
-  description: 'Join 2,400+ specialists already listed on Dementia Care. Reach families actively searching for your expertise.',
+  description: 'Join verified dementia specialists listed on Dementia Care. Reach families actively searching for your expertise.',
 }
 
 export default function ForProvidersPage() {
@@ -19,7 +19,7 @@ export default function ForProvidersPage() {
             Reach families <em className="italic text-teal">actively searching</em> for your expertise
           </h1>
           <p className="text-lg leading-relaxed text-ink-soft max-w-xl">
-            Over 12,000 families use Dementia Care every month to find verified dementia specialists. A listing puts your practice directly in front of the people who need exactly what you offer.
+            Dementia Care connects families with verified dementia specialists across the country. A listing puts your practice directly in front of the people who need exactly what you offer.
           </p>
         </div>
       </div>
@@ -28,7 +28,7 @@ export default function ForProvidersPage() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-5 mb-7">
           {[
-            { num: '12,000+', lbl: 'Monthly family searches' },
+            { num: '41+', lbl: 'Verified specialists listed' },
             { num: '4.2x', lbl: 'More inquiries vs. unclaimed' },
             { num: '48 hrs', lbl: 'Avg. time to verified listing' },
           ].map(s => (
